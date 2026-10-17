@@ -23,13 +23,21 @@
                     <p class="text-xs text-indigo-200">Kolaborasi Divisi: LKP, LKU, LKS, LDM, LBH, LKM, LIT</p>
                 </div>
             </div>
-            <!-- Tab Navigasi -->
-            <div class="flex bg-indigo-900/60 p-1 rounded-xl border border-indigo-600">
-                <button onclick="switchTab('podcast')" id="tab-podcast" class="px-4 py-2 text-sm font-medium rounded-lg transition-all bg-white text-indigo-900 shadow">
-                    <i class="fa-solid fa-calendar-days mr-2"></i>Jadwal Podcast
-                </button>
-                <button onclick="switchTab('materi')" id="tab-materi" class="px-4 py-2 text-sm font-medium rounded-lg transition-all text-indigo-100 hover:text-white">
-                    <i class="fa-solid fa-file-pen mr-2"></i>Kirim Materi (Meme/Carousel)
+
+            <!-- Tab Navigasi & Tombol Admin -->
+            <div class="flex items-center gap-3">
+                <div class="flex bg-indigo-900/60 p-1 rounded-xl border border-indigo-600">
+                    <button onclick="switchTab('podcast')" id="tab-podcast" class="px-4 py-2 text-sm font-medium rounded-lg transition-all bg-white text-indigo-900 shadow">
+                        <i class="fa-solid fa-calendar-days mr-2"></i>Jadwal Podcast
+                    </button>
+                    <button onclick="switchTab('materi')" id="tab-materi" class="px-4 py-2 text-sm font-medium rounded-lg transition-all text-indigo-100 hover:text-white">
+                        <i class="fa-solid fa-file-pen mr-2"></i>Kirim Materi
+                    </button>
+                </div>
+                
+                <!-- Tombol Status Admin -->
+                <button id="btn-auth" onclick="handleAuth()" class="px-3.5 py-2 rounded-xl text-xs font-semibold transition border flex items-center gap-2 bg-indigo-800 border-indigo-600 text-indigo-100 hover:bg-indigo-900">
+                    <i class="fa-solid fa-lock" id="auth-icon"></i> <span id="auth-text">Mode Tamu (User)</span>
                 </button>
             </div>
         </div>
@@ -131,7 +139,7 @@
                                     <th class="py-3 px-3">Topik / Tema</th>
                                     <th class="py-3 px-3">Host & Narasumber</th>
                                     <th class="py-3 px-3">Status</th>
-                                    <th class="py-3 px-3 text-right">Aksi Admin</th>
+                                    <th class="py-3 px-3 text-right" id="th-aksi-admin">Aksi Admin</th>
                                 </tr>
                             </thead>
                             <tbody id="table-podcast-body" class="divide-y divide-slate-100 text-sm">
@@ -231,7 +239,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Konfigurasi Firebase Anda
         const firebaseConfig = {
             apiKey: "AIzaSyDUQtMUibWA1atiFRnfh3FWIzLAd6f6C3M",
             authDomain: "balikpapanpodcast-e63f2.firebaseapp.com",
@@ -242,11 +249,9 @@
             appId: "1:316601698941:web:860e854cdde37c678f7f14"
         };
 
-        // Inisialisasi Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Global functions untuk diakses HTML window
         window.db = db;
         window.collection = collection;
         window.addDoc = addDoc;
@@ -258,12 +263,62 @@
         window.query = query;
         window.orderBy = orderBy;
 
-        // Load data real-time saat halaman siap
         initRealtimeListeners();
     </script>
 
-    <!-- Main Application Logic -->
+    <!-- Main Application Logic & Admin Auth -->
     <script>
+        // Status Admin (Default: false / Tamu)
+        let isAdmin = localStorage.getItem('hub_is_admin') === 'true';
+        const ADMIN_PIN = "123123"; // PIN Admin default, bisa diganti sesuai keinginan
+
+        // Jalankan saat halaman dimuat
+        document.addEventListener("DOMContentLoaded", () => {
+            updateAuthUI();
+        });
+
+        function handleAuth() {
+            if (isAdmin) {
+                if (confirm("Keluar dari Mode Admin?")) {
+                    isAdmin = false;
+                    localStorage.setItem('hub_is_admin', 'false');
+                    updateAuthUI();
+                    renderPodcast();
+                    alert("Berhasil keluar dari Mode Admin.");
+                }
+            } else {
+                const inputPin = prompt("Masukkan PIN Admin:");
+                if (inputPin === ADMIN_PIN) {
+                    isAdmin = true;
+                    localStorage.setItem('hub_is_admin', 'true');
+                    updateAuthUI();
+                    renderPodcast();
+                    alert("Akses Admin diberikan!");
+                } else if (inputPin !== null) {
+                    alert("PIN Salah!");
+                }
+            }
+        }
+
+        function updateAuthUI() {
+            const btnAuth = document.getElementById('btn-auth');
+            const authIcon = document.getElementById('auth-icon');
+            const authText = document.getElementById('auth-text');
+            const thAksiAdmin = document.getElementById('th-aksi-admin');
+
+            if (isAdmin) {
+                btnAuth.className = "px-3.5 py-2 rounded-xl text-xs font-semibold transition border flex items-center gap-2 bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700 shadow-sm";
+                authIcon.className = "fa-solid fa-lock-open text-amber-200";
+                authText.innerText = "Mode Admin Aktif";
+                if(thAksiAdmin) thAksiAdmin.style.display = "";
+            } else {
+                btnAuth.className = "px-3.5 py-2 rounded-xl text-xs font-semibold transition border flex items-center gap-2 bg-indigo-800 border-indigo-600 text-indigo-100 hover:bg-indigo-900";
+                authIcon.className = "fa-solid fa-lock";
+                authText.innerText = "Mode Tamu (User)";
+                if(thAksiAdmin) thAksiAdmin.style.display = "none";
+            }
+        }
+
         // Tab Switcher
         function switchTab(tab) {
             const secPodcast = document.getElementById('section-podcast');
@@ -310,6 +365,7 @@
         }
 
         async function updateStatus(id, newStatus) {
+            if (!isAdmin) return alert("Akses ditolak! Hanya admin yang dapat mengubah status.");
             try {
                 const docRef = window.doc(window.db, "podcast_schedules", id);
                 await window.updateDoc(docRef, { status: newStatus });
@@ -319,6 +375,7 @@
         }
 
         async function deletePodcast(id) {
+            if (!isAdmin) return alert("Akses ditolak! Hanya admin yang dapat menghapus jadwal.");
             if (confirm("Hapus jadwal ini?")) {
                 try {
                     await window.deleteDoc(window.doc(window.db, "podcast_schedules", id));
@@ -351,6 +408,7 @@
         }
 
         async function deleteMateri(id) {
+            if (!isAdmin) return alert("Akses ditolak!");
             if (confirm("Hapus arsip materi ini?")) {
                 try {
                     await window.deleteDoc(window.doc(window.db, "content_materials", id));
@@ -364,7 +422,6 @@
         let globalPodcastData = [];
 
         function initRealtimeListeners() {
-            // Listener Podcast
             const qPodcast = window.query(window.collection(window.db, "podcast_schedules"), window.orderBy("createdAt", "desc"));
             window.onSnapshot(qPodcast, (snapshot) => {
                 globalPodcastData = [];
@@ -374,7 +431,6 @@
                 renderPodcast();
             });
 
-            // Listener Materi
             const qMateri = window.query(window.collection(window.db, "content_materials"), window.orderBy("createdAt", "desc"));
             window.onSnapshot(qMateri, (snapshot) => {
                 let html = "";
@@ -398,9 +454,7 @@
                                 <a href="${d.link}" target="_blank" class="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-medium transition">
                                     <i class="fa-solid fa-link mr-1"></i> Buka Link
                                 </a>
-                                <button onclick="deleteMateri('${doc.id}')" class="text-slate-400 hover:text-rose-600 text-xs p-1">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                                ${isAdmin ? `<button onclick="deleteMateri('${doc.id}')" class="text-slate-400 hover:text-rose-600 text-xs p-1"><i class="fa-solid fa-trash"></i></button>` : ''}
                             </td>
                         </tr>
                     `;
@@ -418,6 +472,23 @@
                 let badgeStatus = "bg-amber-100 text-amber-800 border-amber-200";
                 if (d.status.includes("Disetujui")) badgeStatus = "bg-emerald-100 text-emerald-800 border-emerald-200";
                 if (d.status.includes("Reschedule")) badgeStatus = "bg-rose-100 text-rose-800 border-rose-200";
+
+                let actionButtons = '';
+                if (isAdmin) {
+                    actionButtons = `
+                        <td class="py-3 px-3 text-right space-x-1">
+                            <button onclick="updateStatus('${d.id}', 'Disetujui (Approved)')" title="Setujui" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded-lg text-xs">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                            <button onclick="updateStatus('${d.id}', 'Perlu Reschedule / Bentrok')" title="Reschedule" class="bg-amber-50 text-amber-600 hover:bg-amber-100 p-1.5 rounded-lg text-xs">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </button>
+                            <button onclick="deletePodcast('${d.id}')" title="Hapus" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-1.5 rounded-lg text-xs">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                }
 
                 html += `
                     <tr class="hover:bg-slate-50 transition">
@@ -438,21 +509,11 @@
                         <td class="py-3 px-3">
                             <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${badgeStatus}">${d.status}</span>
                         </td>
-                        <td class="py-3 px-3 text-right space-x-1">
-                            <button onclick="updateStatus('${d.id}', 'Disetujui (Approved)')" title="Setujui" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded-lg text-xs">
-                                <i class="fa-solid fa-check"></i>
-                            </button>
-                            <button onclick="updateStatus('${d.id}', 'Perlu Reschedule / Bentrok')" title="Reschedule" class="bg-amber-50 text-amber-600 hover:bg-amber-100 p-1.5 rounded-lg text-xs">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                            </button>
-                            <button onclick="deletePodcast('${d.id}')" title="Hapus" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-1.5 rounded-lg text-xs">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
+                        ${actionButtons}
                     </tr>
                 `;
             });
-            document.getElementById('table-podcast-body').innerHTML = html || `<tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada jadwal podcast yang diajukan.</td></tr>`;
+            document.getElementById('table-podcast-body').innerHTML = html || `<tr><td colspan="${isAdmin ? 5 : 4}" class="text-center py-6 text-slate-400">Belum ada jadwal podcast yang diajukan.</td></tr>`;
         }
     </script>
 </body>
